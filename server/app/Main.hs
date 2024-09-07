@@ -3,8 +3,7 @@
 {-# LANGUAGE TypeOperators     #-}
 
 import           Control.Monad.Except       (throwError)
-import           Control.Monad.IO.Class
-
+import           Control.Monad.IO.Class     (liftIO)
 import qualified Data.ByteString.Lazy       as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
 import qualified Data.Map.Strict            as Map
