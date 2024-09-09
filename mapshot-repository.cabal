@@ -78,9 +78,10 @@ executable mapshot-repository
                     , random
                     , containers
                     , mtl
+                    , base64
 
     -- Directories containing source files.
-    hs-source-dirs:   app
+    hs-source-dirs:   server/app
 
     -- Base language which the package is written in.
     default-language: Haskell2010
