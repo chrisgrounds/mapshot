@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapshot Uploader</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <header>
+    <h1>Mapshot Uploader</h1>
+  </header>
+  <main>
+    <form id="uploadForm">
+      <input type="file" id="mapshot" name="mapshot" accept=".zip,.html,.js,.jpg" required>
+      <button type="submit">Upload Mapshot</button>
+    </form>
+  </main>
+
+  <script>
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      const fileInput = document.getElementById('mapshot');
+      formData.append('file', fileInput.files[0]);
+
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const id = await response.text();
+          alert(`Mapshot uploaded successfully! ID: ${id}`);
+        } else {
+          alert('Upload failed. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+      }
+    });
+  </script>
+</body>
+
+</html>
