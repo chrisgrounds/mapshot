@@ -34,8 +34,6 @@ type API = "upload" :> MultipartForm Mem (MultipartData Mem) :> Post '[JSON] Tex
 
 type Base64Text = Base64 'StdPadded Text
 
--- type Storage = Map.Map String Base64Text
-
 server :: Server API
 server = uploadMapshot :<|> retrieveMapshot
 
