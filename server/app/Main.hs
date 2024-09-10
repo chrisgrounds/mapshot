@@ -2,49 +2,75 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
 
-import           Control.Monad.Except       (throwError)
-import           Control.Monad.IO.Class     (liftIO)
-import qualified Data.ByteString.Lazy       as BS
-import qualified Data.ByteString.Lazy.Char8 as BSC
-import qualified Data.Map.Strict            as Map
-import           Data.Proxy                 (Proxy (..))
-import           Data.Text                  (Text, pack, unpack)
-import           Network.Wai.Handler.Warp   (run)
-import           Servant.API                (Capture, Get, JSON, OctetStream,
-                                             Post, type (:<|>) (..), type (:>))
-import           Servant.Multipart          (FileData (fdPayload), Mem,
-                                             MultipartData (files),
-                                             MultipartForm)
-import           Servant.Server             (Application, Handler, Server,
-                                             ServerError (..), err400, err404,
-                                             errBody, serve)
-import           System.Random              (randomRIO)
+import           Control.Monad.Except        (throwError)
+import           Control.Monad.IO.Class      (liftIO)
+import           Data.Base64.Types           (Alphabet (..), Base64 (..),
+                                              extractBase64)
+import qualified Data.ByteString.Lazy        as BS
+import qualified Data.ByteString.Lazy.Char8  as BSC
+import qualified Data.Map.Strict             as Map
+import           Data.Proxy                  (Proxy (..))
+import           Data.Text                   (Text, pack, take, unpack)
+import           Data.Text.Encoding          (decodeUtf8, encodeUtf8)
+import           Data.Text.Encoding.Base64   (decodeBase64, encodeBase64)
+import           Data.Text.IO                (writeFile)
+import           Network.URI.Encode          (encodeText)
+import           Network.Wai.Handler.Warp    (run)
+import           Network.Wai.Middleware.Cors (simpleCors)
+import           Prelude                     hiding (take, writeFile)
+import           Servant.API                 (Capture, Get, JSON, OctetStream,
+                                              Post, type (:<|>) (..), type (:>))
+import           Servant.Multipart           (FileData (fdPayload), Mem,
+                                              MultipartData (files),
+                                              MultipartForm)
+import           Servant.Server              (Application, Handler, Server,
+                                              ServerError (..), err400, err404,
+                                              errBody, serve)
+import           System.Directory            (doesFileExist)
+import           System.Random               (randomRIO)
 
 type API = "upload" :> MultipartForm Mem (MultipartData Mem) :> Post '[JSON] Text
         :<|> "mapshot" :> Capture "id" Text :> Get '[OctetStream] BS.ByteString
 
-type Storage = Map.Map String BSC.ByteString
+type Base64Text = Base64 'StdPadded Text
 
-server :: Storage -> Server API
-server storage = uploadMapshot storage :<|> retrieveMapshot storage
+-- type Storage = Map.Map String Base64Text
 
-uploadMapshot :: Storage -> MultipartData Mem -> Handler Text
-uploadMapshot storage multipartData = do
+server :: Server API
+server = uploadMapshot :<|> retrieveMapshot
+
+fileToBase64 :: [FileData Mem] -> Base64Text
+fileToBase64 = encodeBase64 . decodeUtf8 . BS.toStrict . mconcat . fmap fdPayload
+
+fileToString :: [FileData Mem] -> Text
+fileToString = decodeUtf8 . BS.toStrict . mconcat . fmap fdPayload
+
+textToByteString :: Text -> BS.ByteString
+textToByteString = BS.fromStrict . encodeUtf8
+
+uploadMapshot :: MultipartData Mem -> Handler Text
+uploadMapshot multipartData = do
+    liftIO $ putStrLn "Starting upload process"
+
     let fs = files multipartData
-    case fs of
-        [file] -> do
-            mapshotId <- liftIO generateId
-            let newStorage = Map.insert mapshotId (fdPayload file) storage
+    let baseString = extractBase64 $ fileToBase64 fs
+    let mapshotId = encodeText $ take 20 baseString
 
-            return (pack mapshotId)
-        _ ->
-            throwError
-                err400 { errBody = "Exactly one file must be uploaded" }
+    liftIO $ writeFile (unpack mapshotId) baseString
+    liftIO $ putStrLn "Upload process finished"
 
-retrieveMapshot :: Storage -> Text -> Handler BS.ByteString
-retrieveMapshot storage mapshotId = case Map.lookup (unpack mapshotId) storage of
-    Just mapshot -> return mapshot
-    Nothing      -> throwError err404{errBody = "Mapshot not found"}
+    return mapshotId
+
+retrieveMapshot :: Text -> Handler BS.ByteString
+retrieveMapshot mapshotId = do
+    exists <- liftIO (doesFileExist $ unpack mapshotId)
+    if exists
+        then do
+            mapshot <- liftIO (readFile $ unpack mapshotId)
+            liftIO $ putStrLn $ "Retrieving mapshot: " ++ show mapshot
+            return $ textToByteString $ pack mapshot
+        else
+            throwError err404 {errBody = "Mapshot not found"}
 
 generateId :: IO String
 generateId = do
@@ -54,11 +80,10 @@ generateId = do
 api :: Proxy API
 api = Proxy
 
-app :: Storage -> Application
-app storage = serve api (server storage)
+app :: Application
+app = simpleCors $ serve api server
 
 main :: IO ()
 main = do
-    let storage = Map.empty
     putStrLn "Starting server on port 8080"
-    run 8080 $ app storage
+    run 8080 app

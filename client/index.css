@@ -43,3 +43,14 @@ button {
 button:hover {
   background-color: #45a049;
 }
+
+#resultSection {
+  background-color: #f0f0f0;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+#mapshotUrl {
+  word-break: break-all;
+}

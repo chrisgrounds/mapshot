@@ -5,36 +5,63 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapshot Uploader</title>
-  <link rel="stylesheet" href="index.css">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body>
-  <header>
-    <h1>Mapshot Uploader</h1>
+<body class="font-sans m-0 p-0 flex flex-col min-h-screen">
+  <header class="bg-gray-100 p-4 text-center">
+    <h1 class="text-2xl font-bold">Mapshot Uploader</h1>
   </header>
-  <main>
-    <form id="uploadForm">
-      <input type="file" id="mapshot" name="mapshot" accept=".zip,.html,.js,.jpg" required>
-      <button type="submit">Upload Mapshot</button>
-    </form>
+  <main class="flex-grow flex justify-center items-center">
+    <div class="flex flex-col items-center">
+      <form id="uploadForm" class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <div class="mb-4 relative">
+          <input type="file" id="mapshot" name="mapshot" accept=".zip,.html,.js,.jpg" required
+            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+          <button type="button"
+            class="bg-blue-500 text-white py-4 px-8 rounded-lg text-xl font-semibold hover:bg-blue-600 transition duration-300 w-full">Choose
+            Mapshot Files</button>
+        </div>
+        <button type="submit"
+          class="bg-green-500 text-white py-4 px-8 rounded-lg text-xl font-semibold hover:bg-green-600 transition duration-300 w-full">Upload
+          Mapshot Files</button>
+      </form>
+      <div id="resultSection" class="hidden mt-8 text-center bg-gray-100 p-4 rounded-lg w-full max-w-md">
+        <p class="mb-2">Here is your URL:</p>
+        <a id="mapshotUrl" href="#" target="_blank" class="text-blue-500 hover:text-blue-600 break-all"></a>
+      </div>
+    </div>
   </main>
 
   <script>
+    const fileInput = document.getElementById('mapshot');
+    const fileButton = fileInput.nextElementSibling;
+
+    fileInput.addEventListener('change', function () {
+      if (this.files.length > 0) {
+        fileButton.textContent = this.files[0].name;
+      } else {
+        fileButton.textContent = 'Choose Mapshot Files';
+      }
+    });
+
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData();
-      const fileInput = document.getElementById('mapshot');
       formData.append('file', fileInput.files[0]);
 
       try {
-        const response = await fetch('/upload', {
+        const response = await fetch('http://localhost:8080/upload', {
           method: 'POST',
           body: formData
         });
 
         if (response.ok) {
-          const id = await response.text();
-          alert(`Mapshot uploaded successfully! ID: ${id}`);
+          const id = (await response.text()).replace(/"/g, "");
+          const url = `http://localhost:8080/mapshot/${id}`;
+          document.getElementById('mapshotUrl').href = url;
+          document.getElementById('mapshotUrl').textContent = url;
+          document.getElementById('resultSection').classList.remove('hidden');
         } else {
           alert('Upload failed. Please try again.');
         }
