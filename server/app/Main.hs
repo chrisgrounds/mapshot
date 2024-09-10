@@ -70,11 +70,6 @@ retrieveMapshot mapshotId = do
         else
             throwError err404 {errBody = "Mapshot not found"}
 
-generateId :: IO String
-generateId = do
-    num <- randomRIO (1000000, 9999999 :: Int)
-    return $ show num
-
 api :: Proxy API
 api = Proxy
 
